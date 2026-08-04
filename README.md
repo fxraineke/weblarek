@@ -98,3 +98,287 @@ Presenter - презентер содержит основную логику п
 `emit<T extends object>(event: string, data?: T): void` - инициализация события. При вызове события в метод передается название события и объект с данными, который будет использован как аргумент для вызова обработчика.  
 `trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void` - возвращает функцию, при вызове которой инициализируется требуемое в параметрах событие с передачей в него данных из второго параметра.
 
+#### Данные
+
+Товар:
+* идентификатор (`id`): строка (`string`)
+* описание (`description`): строка (`string`)
+* изображение (`image`): строка (`string`)
+* название (`title`): строка (`string`)
+* категория (`category`): строка (`string`) 
+* цена (`price`): число (`number`) | `null`
+
+Покупатель:
+* оплата (`payment`): онлайн (`card`) | при получении (`cash`) | `""`
+* почта (`email`): строка (`string`)
+* телефон (`phone`): строка (`string`)
+* адрес (`address`): строка (`string`)
+
+Единый интерфейс для товара, который используется в каталоге и корзине.
+```
+interface IProduct {
+  id: string;
+  description: string;
+  image: string;
+  title: string;
+  category: string;
+  price: number | null;
+}
+```
+
+Тип оплаты для интерфейса покупателя.
+```
+export type TPayment = typeof PAYMENTS[number];
+```
+
+Интерфейс данных покупателя.
+```
+interface IBuyer {
+  payment: TPayment;
+  email: string;
+  phone: string;
+  address: string;
+  }
+```
+
+#### Модели данных
+
+Класс `Catalog` (Каталог).
+```
+class Catalog {
+
+  // приватное наполнение каталога
+  private products: IProduct[] = [];
+  // приватное хранение выбранного товара
+  private selectedProduct: IProduct | null = null;
+
+  // установить товары каталога
+  public setProducts(products: IProduct[]): void {
+    this.products = products;
+    this.selectedProduct = null;
+  }
+
+  // получить товары каталога
+  public getProducts(): IProduct[] {
+    return this.products;
+  }
+
+  // получить товар по id
+  public getProduct(id: string): IProduct {
+    return this.products.find(p => p.id === id);
+  }
+
+  // установить выбранный товар
+  public setSelectedProduct(product: IProduct | null): void {
+    this.selectedProduct = product ?? null;
+  }
+
+  // очистить выбранный товар
+  public clearSelectedProduct(): void {
+    this.selectedProduct = null;
+  }
+}
+```
+
+Класс `Cart` (Корзина).
+```
+class Cart {
+
+  // приватное наполнение корзины
+  private products: IProduct[] = [];
+
+  // получить товары в корзине
+  public getProducts(): IProduct[] {
+    return this.products;
+  }
+
+  // Добавить товар в корзину
+  public addProduct(product: IProduct): void {
+    if (this.hasProduct(product.id) || product.price === null) {
+      return;
+    }
+    this.products.push(product);
+  }
+
+  // удалить товар из корзины по id
+  public removeProductById(id: string): void {
+    this.products = this.products.filter(product => product.id !== id);
+  }
+  
+  // очистить корзину
+  public clearCart(): void {
+    this.products = [];
+  }
+
+  // получить количество товаров в корзине
+  public getCount(): number {
+    return this.products.length;
+  }
+
+  // получить общую стоимость товаров в корзине
+  public getTotal(): number {
+    return this.products
+      .reduce((sum, product) => sum + (product.price ?? 0), 0);
+  }
+
+  // проверка наличия товара в корзине
+  public hasProduct(id: string): boolean {
+    return this.products.some(product => product.id === id);
+  }
+}
+```
+
+Класс `Buyer` реализует интерфейс `IBuyer` (Покупатель).
+```
+class Buyer implements IBuyer {
+
+  public payment: TPayment = "";
+  public address: string = "";
+  public email: string = "";
+  public phone: string = "";
+
+  constructor(data: IBuyer) {
+    this.payment = data.payment;
+    this.address = data.address;
+    this.email = data.email;
+    this.phone = data.phone;
+  }
+
+  // установить тип оплаты
+  public setPayment(payment: TPayment): void {
+    this.payment = payment;
+  }
+
+  // установить адрес
+  public setAddress(address: string): void {
+    this.address = address;
+  }
+
+  // установить email
+  public setEmail(email: string): void {
+    this.email = email;
+  }
+
+  // установить телефон
+  public setPhone(phone: string): void {
+    this.phone = phone;
+  }
+
+  // получить данные покупателя
+  public getBuyer(): IBuyer {
+    return {
+      payment: this.payment,
+      address: this.address,
+      email: this.email,
+      phone: this.phone,
+    };
+  }
+
+  // очистить данные покупателя
+  public clearBuyer(): void {
+    this.payment = "";
+    this.address = "";
+    this.email = "";
+    this.phone = "";
+  }
+  
+  // валидация данных покупателя
+  public validate(): { payment?: string; address?: string; phone?: string; email?: string } {
+    let errors: { payment?: string; address?: string; phone?: string; email?: string } = {};
+
+    if (!this.payment) {
+        errors.payment = "Необходимо выбрать тип оплаты";
+    }
+    
+    if (!this.address) {
+        errors.address = "Необходимо указать адрес";
+    } else if (this.address.length < 10) {
+        errors.address = "Неверный формат адреса (минимум 10 символов)";
+    }
+    
+    if (!this.phone) {
+        errors.phone = "Необходимо указать телефон";
+    } else if (!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(this.phone)) {
+        errors.phone = "Неверный формат телефона (+7 (XXX) XXX-XX-XX)";
+    }
+    
+    if (!this.email) {
+        errors.email = "Необходимо указать email";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+        errors.email = "Неверный формат email (example@example.com)";
+    }
+
+    return errors;
+  }
+  
+  // проверка валидности всех данных покупателя
+  public isValid(): boolean {
+    return Object.keys(this.validate()).length === 0;
+  }
+}
+```
+
+#### Слой коммуникации
+
+Интерфейс ответа сервера на запрос списка товаров (метод `getProducts`).
+```
+interface IProductsResponse {
+  total: number;
+  items: IProduct[];
+}
+```
+
+Интерфейс для отправки данных заказа на сервер (метод `postOrder`).
+```
+interface IOrderRequest {
+  buyer: IBuyer;
+  total: number;
+  items: IProduct["id"][];
+}
+```
+
+Ответ сервера на успешный заказ (метод `postOrder`).
+```
+interface IOrderResponse {
+  id: string;
+  total: number;
+}
+```
+
+Класс `Request` реализует интерфейс слоя коммуникации с API.
+```
+class Request {
+
+  // наследуемый базовый класс API
+  private api: IApi;
+
+  constructor(api: IApi) {
+    this.api = api;
+  }
+
+  // получить список товаров с сервера
+  public getProducts(): Promise<IProductsResponse> {
+    return this.api.get("/product/");
+  }
+
+  // получить товар с сервера по id
+  public getProduct(id: string): Promise<IProduct> {
+    return this.api.get("/product/" + id);
+  }
+
+  // отправить заказ на сервер
+  public postOrder(data: IOrderRequest): Promise<IOrderResponse> {
+    return this.api.post("/order/", {
+      ...data.buyer,
+      total: data.total,
+      items: data.items,
+    });
+  }
+}
+```
+
+Переиспользование существующих типов: 
+* `IProductsResponse.items` основан на `IProduct`
+* `IOrderRequest.buyer` на `IBuyer`
+* `IOrderRequest.items` на `IProduct["id"][]`
+
