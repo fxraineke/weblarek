@@ -155,7 +155,6 @@ class Catalog {
   // установить товары каталога
   public setProducts(products: IProduct[]): void {
     this.products = products;
-    this.selectedProduct = null;
   }
 
   // получить товары каталога
@@ -164,18 +163,18 @@ class Catalog {
   }
 
   // получить товар по id
-  public getProduct(id: string): IProduct {
-    return this.products.find(p => p.id === id);
+  public getProduct(id: string): IProduct | undefined {
+    return this.products.find((p) => p.id === id);
   }
 
   // установить выбранный товар
-  public setSelectedProduct(product: IProduct | null): void {
-    this.selectedProduct = product ?? null;
+  public setSelectedProduct(product: IProduct): void {
+    this.selectedProduct = product;
   }
 
-  // очистить выбранный товар
-  public clearSelectedProduct(): void {
-    this.selectedProduct = null;
+  // получить выбранный товар
+  public getSelectedProduct(): IProduct | null {
+    return this.selectedProduct;
   }
 }
 ```
@@ -228,7 +227,13 @@ class Cart {
 }
 ```
 
+Тип ошибки для класса `Buyer`, переиспользует ключи интерфейса `IBuyer`.
+```
+type TErrors = Partial<Record<keyof IBuyer, string>>;
+```
+
 Класс `Buyer` реализует интерфейс `IBuyer` (Покупатель).
+
 ```
 class Buyer implements IBuyer {
 
@@ -283,37 +288,32 @@ class Buyer implements IBuyer {
   }
   
   // валидация данных покупателя
-  public validate(): { payment?: string; address?: string; phone?: string; email?: string } {
-    let errors: { payment?: string; address?: string; phone?: string; email?: string } = {};
+  public validate(): TErrors {
+    const errors: TErrors = {};
 
     if (!this.payment) {
-        errors.payment = "Необходимо выбрать тип оплаты";
+      errors.payment = "Необходимо выбрать тип оплаты";
     }
-    
+
     if (!this.address) {
-        errors.address = "Необходимо указать адрес";
+      errors.address = "Необходимо указать адрес";
     } else if (this.address.length < 10) {
-        errors.address = "Неверный формат адреса (минимум 10 символов)";
+      errors.address = "Неверный формат адреса (минимум 10 символов)";
     }
-    
+
     if (!this.phone) {
-        errors.phone = "Необходимо указать телефон";
+      errors.phone = "Необходимо указать телефон";
     } else if (!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(this.phone)) {
-        errors.phone = "Неверный формат телефона (+7 (XXX) XXX-XX-XX)";
+      errors.phone = "Неверный формат телефона (+7 (XXX) XXX-XX-XX)";
     }
-    
+
     if (!this.email) {
-        errors.email = "Необходимо указать email";
+      errors.email = "Необходимо указать email";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
-        errors.email = "Неверный формат email (example@example.com)";
+      errors.email = "Неверный формат email (example@example.com)";
     }
 
     return errors;
-  }
-  
-  // проверка валидности всех данных покупателя
-  public isValid(): boolean {
-    return Object.keys(this.validate()).length === 0;
   }
 }
 ```
@@ -330,10 +330,9 @@ interface IProductsResponse {
 
 Интерфейс для отправки данных заказа на сервер (метод `postOrder`).
 ```
-interface IOrderRequest {
-  buyer: IBuyer;
+interface IOrderRequest extends IBuyer {
   total: number;
-  items: IProduct["id"][];
+  items: string[];
 }
 ```
 
@@ -345,9 +344,9 @@ interface IOrderResponse {
 }
 ```
 
-Класс `Request` реализует интерфейс слоя коммуникации с API.
+Класс `WebLarekApi` реализует интерфейс слоя коммуникации с API.
 ```
-class Request {
+class WebLarekApi {
 
   // наследуемый базовый класс API
   private api: IApi;
@@ -357,28 +356,17 @@ class Request {
   }
 
   // получить список товаров с сервера
-  public getProducts(): Promise<IProductsResponse> {
+  getProducts(): Promise<IProductsResponse> {
     return this.api.get("/product/");
   }
 
-  // получить товар с сервера по id
-  public getProduct(id: string): Promise<IProduct> {
-    return this.api.get("/product/" + id);
-  }
-
   // отправить заказ на сервер
-  public postOrder(data: IOrderRequest): Promise<IOrderResponse> {
-    return this.api.post("/order/", {
-      ...data.buyer,
-      total: data.total,
-      items: data.items,
-    });
+  postOrder(data: IOrderRequest): Promise<IOrderResponse> {
+    return this.api.post<IOrderResponse>("/order/", data);
   }
 }
 ```
 
 Переиспользование существующих типов: 
 * `IProductsResponse.items` основан на `IProduct`
-* `IOrderRequest.buyer` на `IBuyer`
-* `IOrderRequest.items` на `IProduct["id"][]`
-
+* `IOrderRequest` на `IBuyer`
