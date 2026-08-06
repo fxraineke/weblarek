@@ -6,26 +6,21 @@ export class Catalog {
 
   public setProducts(products: IProduct[]): void {
     this.products = products;
-    this.selectedProduct = null;
   }
 
   public getProducts(): IProduct[] {
     return this.products;
   }
 
-  public getProduct(id: string): IProduct | null {
-    return this.products.find((p) => p.id === id) ?? null;
+  public getProduct(id: string): IProduct | undefined {
+    return this.products.find((p) => p.id === id);
   }
 
-  public setSelectedProduct(product: IProduct | null): void {
-    this.selectedProduct = product ?? null;
+  public setSelectedProduct(product: IProduct): void {
+    this.selectedProduct = product;
   }
 
   public getSelectedProduct(): IProduct | null {
     return this.selectedProduct;
-  }
-
-  public clearSelectedProduct(): void {
-    this.selectedProduct = null;
   }
 }

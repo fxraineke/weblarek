@@ -19,8 +19,7 @@ export interface IOrderResponse {
   total: number;
 }
 
-export interface IOrderRequest {
-  buyer: IBuyer;
+export interface IOrderRequest extends IBuyer {
   total: number;
   items: string[];
 }

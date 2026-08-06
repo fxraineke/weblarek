@@ -1,5 +1,7 @@
 import { IBuyer, TPayment } from "../../types";
 
+type TErrors = Partial<Record<keyof IBuyer, string>>;
+
 export class Buyer implements IBuyer {
   public payment: TPayment = "";
   public address: string = "";
@@ -45,18 +47,8 @@ export class Buyer implements IBuyer {
   }
 
   // валидация данных покупателя
-  public validate(): {
-    payment?: string;
-    address?: string;
-    phone?: string;
-    email?: string;
-  } {
-    let errors: {
-      payment?: string;
-      address?: string;
-      phone?: string;
-      email?: string;
-    } = {};
+  public validate(): TErrors {
+    const errors: TErrors = {};
 
     if (!this.payment) {
       errors.payment = "Необходимо выбрать тип оплаты";
@@ -81,10 +73,5 @@ export class Buyer implements IBuyer {
     }
 
     return errors;
-  }
-
-  // проверка валидности всех данных покупателя
-  public isValid(): boolean {
-    return Object.keys(this.validate()).length === 0;
   }
 }
