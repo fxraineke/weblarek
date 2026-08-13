@@ -1,19 +1,36 @@
 import { IProduct } from "../../../types";
+import { categoryMap } from "../../../utils/constants";
 import { ensureElement } from "../../../utils/utils";
 import { Card, ICardActions } from "./Card";
 
-export type TCardPreview = Pick<
-  IProduct,
-  "image" | "category" | "title" | "description" | "price"
-> & { inCart: boolean };
+type CategoryKey = keyof typeof categoryMap;
+
+export type TCardPreview = Omit<
+  Pick<IProduct, "image" | "category" | "title" | "description" | "price">,
+  "image"
+> & {
+  image: { src: string; alt: string };
+  buttonText: string;
+  buttonDisabled: boolean;
+};
 
 export class CardPreview extends Card<TCardPreview> {
+  protected imageElement: HTMLImageElement;
+  protected categoryElement: HTMLElement;
   protected textElement: HTMLElement;
   protected buttonElement: HTMLButtonElement;
 
   constructor(container: HTMLElement, actions?: ICardActions) {
     super(container);
 
+    this.imageElement = ensureElement<HTMLImageElement>(
+      ".card__image",
+      this.container,
+    );
+    this.categoryElement = ensureElement<HTMLElement>(
+      ".card__category",
+      this.container,
+    );
     this.textElement = ensureElement<HTMLElement>(
       ".card__text",
       this.container,
@@ -28,20 +45,31 @@ export class CardPreview extends Card<TCardPreview> {
     }
   }
 
+  set category(value: string) {
+    if (!this.categoryElement) return;
+    this.categoryElement.textContent = value;
+    for (const key in categoryMap) {
+      this.categoryElement.classList.toggle(
+        categoryMap[key as CategoryKey],
+        key === value,
+      );
+    }
+  }
+
+  set image(value: { src: string; alt: string }) {
+    if (!this.imageElement) return;
+    this.setImage(this.imageElement, value.src, value.alt);
+  }
+
   set description(value: string) {
     this.textElement.textContent = value;
   }
 
-  set inCart(value: boolean) {
-    const available = this.priceElement.textContent !== "Бесценно";
-    if (!available) return;
-    this.buttonElement.textContent = value ? "Удалить из корзины" : "В корзину";
+  set buttonText(value: string) {
+    this.buttonElement.textContent = value;
   }
 
-  set price(value: number | null) {
-    super.price = value;
-    const available = value !== null;
-    this.buttonElement.disabled = !available;
-    this.buttonElement.textContent = available ? "В корзину" : "Недоступно";
+  set buttonDisabled(value: boolean) {
+    this.buttonElement.disabled = value;
   }
 }

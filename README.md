@@ -574,9 +574,7 @@ class Modal extends Component<IModalData> {
 
 **Представление `Card`**
 
-Абстрактный общий класс трёх карточек: `CardCatalog`, `CardPreview`, `CardBasket`. Все они отображают товар `IProduct`. Сам класс `Card` самостоятельно не используется.
-
-Используем `Partial<IProduct>`, чтобы можно было передавать только нужные значения для отображения дочернего класса представления.
+Абстрактный общий класс трёх карточек: `CardCatalog`, `CardPreview`, `CardBasket`. Все они отображают товар `IProduct`. Сам класс `Card` самостоятельно не используется и является дженериком `Card<T>`.
 
 Использование ключей `IProduct` в представлениях.
 
@@ -590,22 +588,18 @@ class Modal extends Component<IModalData> {
 | `description` | — | + | — |
 
 `title` и `price` используются во всех 3-х представлениях, поэтому добавлены в базовый класс `Card`.
-`image` и `category` используются только в `CardCatalog` и `CardPreview`, но чтобы избежать дублирование логики, добавлены в базовый класс `Card`.
+
+`image` и `category` используются только в `CardCatalog` и `CardPreview`, реализованы в этих подклассах. Сам `image` переопределён как объект `{ src, alt }`, а не `string` для передачи текстового описания изображения, так как не храним данные в представлении и не переиспользуем значения DOM.
 
 ```
-abstract class Card<T extends Partial<IProduct>> extends Component<T> {
+class Card<T> extends Component<T> {
   // основные элементы
-  protected imageElement: HTMLImageElement | null;
-  protected categoryElement: HTMLElement | null;
   protected titleElement: HTMLElement;
   protected priceElement: HTMLElement;
 
   constructor(container: HTMLElement) {
     super(container);
 
-    // image и category опциональные, так как для CardBasket не используются. присваиваются через querySelector и могут быть null
-    this.imageElement = container.querySelector<HTMLImageElement>(".card__image");
-    this.categoryElement = container.querySelector<HTMLElement>(".card__category");
     this.titleElement = ensureElement<HTMLElement>(".card__title", this.container);
     this.priceElement = ensureElement<HTMLElement>(".card__price", this.container);
   }
@@ -613,24 +607,6 @@ abstract class Card<T extends Partial<IProduct>> extends Component<T> {
   // установить заголовок
   set title(value: string) {
     this.titleElement.textContent = value;
-  }
-
-  // установить категорию
-  set category(value: string) {
-    if (!this.categoryElement) return;
-    this.categoryElement.textContent = value;
-    for (const key in categoryMap) {
-      this.categoryElement.classList.toggle(
-        categoryMap[key as CategoryKey],
-        key === value,
-      );
-    }
-  }
-
-  // установить изображение
-  set image(value: string) {
-    if (!this.imageElement) return;
-    this.setImage(this.imageElement, value, this.titleElement.textContent ?? "");
   }
 
   // установить цену
@@ -644,35 +620,65 @@ abstract class Card<T extends Partial<IProduct>> extends Component<T> {
 
 Представление `CardCatalog` наследует свойства `Card`.
 
-Только используемые значения в DOM-элементах: `category`, `title`, `image`, `price`.
+Только используемые значения в DOM-элементах: `category`, `title`, `image`, `price`. `image` переопределён как `{ src, alt }`.
 
 ```
-type TCardCatalog = Pick<IProduct, "category" | "title" | "image" | "price">;
+type TCardCatalog = Omit<Pick<IProduct, "category" | "title" | "image" | "price">, "image"> & {
+  image: { src: string; alt: string };
+};
 
 class CardCatalog extends Card<TCardCatalog> {
+  protected imageElement: HTMLImageElement;
+  protected categoryElement: HTMLElement;
 
   constructor(container: HTMLElement, actions?: ICardActions) {
     super(container);
+
+    this.imageElement = ensureElement<HTMLImageElement>(".card__image", this.container);
+    this.categoryElement = ensureElement<HTMLElement>(".card__category", this.container);
 
     // событие клика на карточку
     if (actions?.onClick) {
       this.container.addEventListener("click", actions.onClick);
     }
   }
+
+  // установить категорию
+  set category(value: string) {
+    this.categoryElement.textContent = value;
+    for (const key in categoryMap) {
+      this.categoryElement.classList.toggle(
+        categoryMap[key as CategoryKey],
+        key === value,
+      );
+    }
+  }
+
+  // установить изображение
+  set image(value: { src: string; alt: string }) {
+    this.setImage(this.imageElement, value.src, value.alt);
+  }
 }
 ```
 
 Представление `CardPreview` наследует свойства `Card`.
 
-Только используемые значения в DOM-элементах: `image`, `category`, `title`, `description`, `price`.
+Только используемые значения в DOM-элементах: `image`, `category`, `title`, `description`, `price`. `image` переопределён как `{ src, alt }`.
 
+Используются два сеттера: `buttonText` (текст кнопки) и `buttonDisabled` (блокировка).
 ```
-type TCardPreview = Pick<
-  IProduct,
-   "image" | "category" | "title" | "description" | "price"
-> & { inCart: boolean };
+type TCardPreview = Omit<
+  Pick<IProduct, "image" | "category" | "title" | "description" | "price">,
+  "image"
+> & {
+  image: { src: string; alt: string };
+  buttonText: string;
+  buttonDisabled: boolean;
+};
 
 class CardPreview extends Card<TCardPreview> {
+  protected imageElement: HTMLImageElement;
+  protected categoryElement: HTMLElement;
   // элемент описания товара (description)
   protected textElement: HTMLElement;
   // элемент кнопки добавления/удаления товара для корзины
@@ -681,14 +687,10 @@ class CardPreview extends Card<TCardPreview> {
   constructor(container: HTMLElement, actions?: ICardActions) {
     super(container);
 
-    this.textElement = ensureElement<HTMLElement>(
-      ".card__text",
-      this.container,
-    );
-    this.buttonElement = ensureElement<HTMLButtonElement>(
-      ".card__button",
-      this.container,
-    );
+    this.imageElement = ensureElement<HTMLImageElement>(".card__image", this.container);
+    this.categoryElement = ensureElement<HTMLElement>(".card__category", this.container);
+    this.textElement = ensureElement<HTMLElement>(".card__text", this.container);
+    this.buttonElement = ensureElement<HTMLButtonElement>(".card__button", this.container);
 
     // событие клика на кнопку
     if (actions?.onClick) {
@@ -696,24 +698,35 @@ class CardPreview extends Card<TCardPreview> {
     }
   }
 
+  // установить категорию
+  set category(value: string) {
+    this.categoryElement.textContent = value;
+    for (const key in categoryMap) {
+      this.categoryElement.classList.toggle(
+        categoryMap[key as CategoryKey],
+        key === value,
+      );
+    }
+  }
+
+  // установить изображение
+  set image(value: { src: string; alt: string }) {
+    this.setImage(this.imageElement, value.src, value.alt);
+  }
+
   // установить описание
   set description(value: string) {
     this.textElement.textContent = value;
   }
 
-  // установить состояние товара в корзине
-  set inCart(value: boolean) {
-    const available = this.priceElement.textContent !== "Бесценно";
-    if (!available) return;
-    this.buttonElement.textContent = value ? "Удалить из корзины" : "В корзину";
+  // установить текст кнопки
+  set buttonText(value: string) {
+    this.buttonElement.textContent = value;
   }
 
-  // установить цену и состояние кнопки
-  set price(value: number | null) {
-    super.price = value;
-    const available = value !== null;
-    this.buttonElement.disabled = !available;
-    this.buttonElement.textContent = available ? "В корзину" : "Недоступно";
+  // установить блокировку кнопки
+  set buttonDisabled(value: boolean) {
+    this.buttonElement.disabled = value;
   }
 }
 ```
@@ -1037,7 +1050,7 @@ class Success extends Component<TSuccess> {
 
 | Событие | Триггер | Обработчик |
 |---|---|---|
-| `ui:card-buy` | клик по кнопке | если товар в `Cart` - удалить, если нет добавить, перерисовать превью |
+| `ui:card-buy` | клик по кнопке | взять выбранный товар из `Catalog`, если он в `Cart` — удалить, иначе добавить, перерисовать превью |
 
 `CardBasket`
 
@@ -1064,22 +1077,22 @@ class Success extends Component<TSuccess> {
 
 | Событие | Триггер | Обработчик |
 |---|---|---|
-| `ui:payment-select` | клик по кнопке оплаты `card` / `cash` | установить способ оплаты в `Buyer` и в форму |
+| `ui:payment-select` | клик по кнопке оплаты `card` / `cash` | установить способ оплаты в `Buyer` |
 | `ui:form-change` | ввод в поле `address` | установить адрес в `Buyer` |
-| `ui:order-next` | клик по кнопке формы заказа | проверить ошибки `Buyer`, при успехе открыть `ContactsForm` |
+| `ui:order-next` | клик по кнопке формы заказа | отрендерить `ContactsForm` в модальное окно |
 
 `ContactsForm`
 
 | Событие | Триггер | Обработчик |
 |---|---|---|
 | `ui:form-change` | ввод в поля `email` / `phone` | установить email/телефон в `Buyer` |
-| `ui:contacts-submit` | клик по кнопке формы контактов | проверить ошибки `Buyer`, отправить заказ, при успехе открыть `Success` |
+| `ui:contacts-submit` | клик по кнопке формы контактов | собрать заказ из `Buyer` и `Cart`, отправить через `api.postOrder`, при успехе очистить корзину/покупателя и открыть `Success` |
 
 **Модель `Buyer`**
 
 | Событие | Триггер | Обработчик |
 |---|---|---|
-| `buyer:changed` | изменение `payment` / `address` / `email` / `phone` через set | вывести ошибки в формы, изменить состояние кнопок `valid` |
+| `buyer:changed` | изменение `payment` / `address` / `email` / `phone` через set | обновить значения полей и ошибки в формах через сеттеры, изменить состояние кнопок `valid` |
 
 **Представление `Success`**
 
@@ -1094,9 +1107,9 @@ class Success extends Component<TSuccess> {
 Вместо отдельного класса презентер реализован инлайн в `src/main.ts`, так как проект состоит из одной страницы.
 
 Презентер связывает модели и представления через брокер событий `EventEmitter`:
-* создаёт экземпляры моделей (`Catalog`, `Cart`, `Buyer`) и представлений (`Page`, `Header`, `Modal`, `Basket`, `OrderForm`, `ContactsForm`, `Success`)
-* фабриками `cardCatalogFactory`, `cardPreviewFactory`, `cardBasketFactory` создаёт карточки под каждый товар
+* создаёт экземпляры моделей (`Catalog`, `Cart`, `Buyer`) и представлений (`Page`, `Header`, `Modal`, `Basket`, `OrderForm`, `ContactsForm`, `Success`, `CardPreview`)
+* фабриками `cardCatalogFactory`, `cardBasketFactory` создаёт карточки каталога и корзины под каждый товар
 * подписывается на события `ui:<действие>` от представлений и вызывает методы моделей
 * подписывается на события моделей `<модель>:<действие>` и обновляет представления через сеттеры
-* при запуске загружает каталог с сервера через `api.getProducts()`
+* при запуске загружает каталог с сервера через `api.getProducts()`, модифицирует пути к картинкам через `CDN_URL` один раз перед записью в модель `Catalog`
 

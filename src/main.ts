@@ -3,7 +3,7 @@ import { Api } from "./components/base/Api";
 import { EventEmitter } from "./components/base/Events";
 import { Catalog } from "./components/models/Catalog";
 import { Cart } from "./components/models/Cart";
-import { Buyer } from "./components/models/Buyer";
+import { Buyer, TErrors } from "./components/models/Buyer";
 import { WebLarekApi } from "./components/WebLarekApi";
 import { API_URL, CDN_URL } from "./utils/constants";
 import { cloneTemplate, ensureElement } from "./utils/utils";
@@ -17,7 +17,7 @@ import { Header } from "./components/views/Header";
 import { OrderForm } from "./components/views/Form/OrderForm";
 import { ContactsForm } from "./components/views/Form/ContactsForm";
 import { Success } from "./components/views/Success";
-import { IProduct, IOrderRequest } from "./types";
+import { IProduct, IOrderRequest, IBuyer } from "./types";
 
 // брокер событий
 const events = new EventEmitter();
@@ -57,16 +57,31 @@ const successView = new Success(cloneTemplate<HTMLElement>("#success"), {
   onClick: () => events.emit("ui:modal-close"),
 });
 
+const cardPreview = new CardPreview(
+  cloneTemplate<HTMLElement>("#card-preview"),
+  {
+    onClick: () => events.emit("ui:card-buy"),
+  },
+);
+
 // фабрики карточек
 const cardCatalogFactory = (product: IProduct): HTMLElement =>
   new CardCatalog(cloneTemplate<HTMLElement>("#card-catalog"), {
     onClick: () => events.emit("ui:card-select", { id: product.id }),
-  }).render({ ...product, image: CDN_URL + product.image });
+  }).render({ ...product, image: { src: product.image, alt: product.title } });
 
-const cardPreviewFactory = (product: IProduct, inCart: boolean): HTMLElement =>
-  new CardPreview(cloneTemplate<HTMLElement>("#card-preview"), {
-    onClick: () => events.emit("ui:card-buy", { id: product.id }),
-  }).render({ ...product, image: CDN_URL + product.image, inCart });
+const renderPreview = (product: IProduct, inCart: boolean): HTMLElement =>
+  cardPreview.render({
+    ...product,
+    image: { src: product.image, alt: product.title },
+    buttonText:
+      product.price === null
+        ? "Недоступно"
+        : inCart
+          ? "Удалить из корзины"
+          : "В корзину",
+    buttonDisabled: product.price === null,
+  });
 
 const cardBasketFactory = (product: IProduct, index: number): HTMLElement =>
   new CardBasket(cloneTemplate<HTMLElement>("#card-basket"), {
@@ -92,45 +107,49 @@ events.on<{ products: IProduct[]; count: number; total: number }>(
 );
 
 // buyer:changed - данные покупателя изменились
-events.on<{
-  buyer: typeof buyerModel;
-  errors: Record<string, string | undefined>;
-}>("buyer:changed", ({ errors }) => {
-  const orderErrors = [errors.payment, errors.address]
-    .filter(Boolean)
-    .join("; ");
-  const contactsErrors = [errors.email, errors.phone]
-    .filter(Boolean)
-    .join("; ");
+events.on<{ buyer: IBuyer; errors: TErrors }>(
+  "buyer:changed",
+  ({ buyer, errors }) => {
+    const orderErrors = [errors.payment, errors.address]
+      .filter(Boolean)
+      .join("; ");
+    const contactsErrors = [errors.email, errors.phone]
+      .filter(Boolean)
+      .join("; ");
 
-  orderForm.errors = orderErrors;
-  orderForm.valid = !errors.payment && !errors.address;
+    orderForm.payment = buyer.payment;
+    orderForm.address = buyer.address;
+    orderForm.errors = orderErrors;
+    orderForm.valid = !errors.payment && !errors.address;
 
-  contactsForm.errors = contactsErrors;
-  contactsForm.valid = !errors.email && !errors.phone;
-});
+    contactsForm.email = buyer.email;
+    contactsForm.phone = buyer.phone;
+    contactsForm.errors = contactsErrors;
+    contactsForm.valid = !errors.email && !errors.phone;
+  },
+);
 
-// события от представлений
+// события представлений
 
 // ui:card-select - выбор карточки товара
 events.on<{ id: string }>("ui:card-select", ({ id }) => {
   const product = catalogModel.getProduct(id);
   if (!product) return;
   catalogModel.setSelectedProduct(product);
-  modal.content = cardPreviewFactory(product, cartModel.hasProduct(id));
+  modal.content = renderPreview(product, cartModel.hasProduct(id));
   modal.open();
 });
 
 // ui:card-buy - добавление или удаление товара из корзины на карточке товара
-events.on<{ id: string }>("ui:card-buy", ({ id }) => {
-  const product = catalogModel.getProduct(id);
+events.on("ui:card-buy", () => {
+  const product = catalogModel.getSelectedProduct();
   if (!product) return;
-  if (cartModel.hasProduct(id)) {
-    cartModel.removeProductById(id);
+  if (cartModel.hasProduct(product.id)) {
+    cartModel.removeProductById(product.id);
   } else {
     cartModel.addProduct(product);
   }
-  modal.content = cardPreviewFactory(product, cartModel.hasProduct(id));
+  modal.content = renderPreview(product, cartModel.hasProduct(product.id));
 });
 
 // ui:cart-remove - удаление товара из корзины
@@ -156,7 +175,6 @@ events.on("ui:order-open", () => {
 // ui:payment-select — выбор способа оплаты
 events.on<{ payment: string }>("ui:payment-select", ({ payment }) => {
   buyerModel.payment = payment as "card" | "cash";
-  orderForm.payment = payment as "card" | "cash";
 });
 
 // ui:form-change — изменение данных в формах
@@ -171,20 +189,12 @@ events.on<{ field: string; value: string }>(
 
 // ui:order-next - переход ко второй форме оформления заказа
 events.on("ui:order-next", () => {
-  const errors = buyerModel.validate();
-  if (errors.payment || errors.address) return;
-  modal.content = contactsForm.render({
-    email: buyerModel.email,
-    phone: buyerModel.phone,
-  });
+  modal.content = contactsForm.render();
   modal.open();
 });
 
 // ui:contacts-submit - завершение оформления заказа
 events.on("ui:contacts-submit", () => {
-  const errors = buyerModel.validate();
-  if (errors.payment || errors.address || errors.email || errors.phone) return;
-
   const order: IOrderRequest = {
     ...buyerModel.getBuyer(),
     total: cartModel.getTotal(),
@@ -210,5 +220,9 @@ events.on("ui:modal-close", () => {
 // загрузка каталога
 api
   .getProducts()
-  .then((response) => catalogModel.setProducts(response.items))
+  .then((response) =>
+    catalogModel.setProducts(
+      response.items.map((p) => ({ ...p, image: CDN_URL + p.image })),
+    ),
+  )
   .catch((err) => console.error("Ошибка загрузки каталога:", err));

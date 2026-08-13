@@ -1,7 +1,7 @@
 import { IBuyer, TPayment } from "../../types";
 import { IEvents } from "../base/Events";
 
-type TErrors = Partial<Record<keyof IBuyer, string>>;
+export type TErrors = Partial<Record<keyof IBuyer, string>>;
 
 export class Buyer implements IBuyer {
   private _payment: TPayment = "";
