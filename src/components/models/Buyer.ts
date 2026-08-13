@@ -57,7 +57,8 @@ export class Buyer implements IBuyer {
   }
 
   public clearBuyer(): void {
-    if (!this._payment && !this._address && !this._email && !this._phone) return;
+    if (!this._payment && !this._address && !this._email && !this._phone)
+      return;
     this._payment = "";
     this._address = "";
     this._email = "";

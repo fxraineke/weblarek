@@ -92,23 +92,23 @@ events.on<{ products: IProduct[]; count: number; total: number }>(
 );
 
 // buyer:changed - данные покупателя изменились
-events.on<{ buyer: typeof buyerModel; errors: Record<string, string | undefined> }>(
-  "buyer:changed",
-  ({ errors }) => {
-    const orderErrors = [errors.payment, errors.address]
-      .filter(Boolean)
-      .join("; ");
-    const contactsErrors = [errors.email, errors.phone]
-      .filter(Boolean)
-      .join("; ");
+events.on<{
+  buyer: typeof buyerModel;
+  errors: Record<string, string | undefined>;
+}>("buyer:changed", ({ errors }) => {
+  const orderErrors = [errors.payment, errors.address]
+    .filter(Boolean)
+    .join("; ");
+  const contactsErrors = [errors.email, errors.phone]
+    .filter(Boolean)
+    .join("; ");
 
-    orderForm.errors = orderErrors;
-    orderForm.valid = !errors.payment && !errors.address;
+  orderForm.errors = orderErrors;
+  orderForm.valid = !errors.payment && !errors.address;
 
-    contactsForm.errors = contactsErrors;
-    contactsForm.valid = !errors.email && !errors.phone;
-  },
-);
+  contactsForm.errors = contactsErrors;
+  contactsForm.valid = !errors.email && !errors.phone;
+});
 
 // события от представлений
 
@@ -146,7 +146,10 @@ events.on("ui:basket-open", () => {
 
 // ui:order-open - нажатие кнопки оформления заказа
 events.on("ui:order-open", () => {
-  modal.content = orderForm.render();
+  modal.content = orderForm.render({
+    payment: buyerModel.payment,
+    address: buyerModel.address,
+  });
   modal.open();
 });
 
@@ -170,7 +173,10 @@ events.on<{ field: string; value: string }>(
 events.on("ui:order-next", () => {
   const errors = buyerModel.validate();
   if (errors.payment || errors.address) return;
-  modal.content = contactsForm.render();
+  modal.content = contactsForm.render({
+    email: buyerModel.email,
+    phone: buyerModel.phone,
+  });
   modal.open();
 });
 

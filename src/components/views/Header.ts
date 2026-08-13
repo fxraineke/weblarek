@@ -13,10 +13,7 @@ export class Header extends Component<IHeader> {
   protected counterElement: HTMLElement;
   protected basketButton: HTMLButtonElement;
 
-  constructor(
-    container: HTMLElement,
-    actions?: IHeaderActions,
-  ) {
+  constructor(container: HTMLElement, actions?: IHeaderActions) {
     super(container);
 
     this.counterElement = ensureElement<HTMLElement>(

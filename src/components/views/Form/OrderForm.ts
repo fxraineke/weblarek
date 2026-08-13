@@ -17,15 +17,15 @@ export class OrderForm extends Form<TOrder> {
     super(container, actions);
 
     this.cardButton = ensureElement<HTMLButtonElement>(
-      'button[name=card]',
+      "button[name=card]",
       this.container,
     );
     this.cashButton = ensureElement<HTMLButtonElement>(
-      'button[name=cash]',
+      "button[name=cash]",
       this.container,
     );
     this.addressInput = ensureElement<HTMLInputElement>(
-      'input[name=address]',
+      "input[name=address]",
       this.container,
     );
 

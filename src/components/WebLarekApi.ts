@@ -2,7 +2,7 @@ import type {
   IApi,
   IProductsResponse,
   IOrderResponse,
-  IOrderRequest
+  IOrderRequest,
 } from "../types";
 
 export class WebLarekApi {

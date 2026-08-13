@@ -11,7 +11,10 @@ export class Page extends Component<IPage> {
   constructor(container: HTMLElement) {
     super(container);
 
-    this.galleryElement = ensureElement<HTMLElement>(".gallery", this.container);
+    this.galleryElement = ensureElement<HTMLElement>(
+      ".gallery",
+      this.container,
+    );
   }
 
   set items(value: HTMLElement[]) {

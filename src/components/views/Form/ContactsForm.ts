@@ -12,11 +12,11 @@ export class ContactsForm extends Form<TContacts> {
     super(container, actions);
 
     this.emailInput = ensureElement<HTMLInputElement>(
-      'input[name=email]',
+      "input[name=email]",
       this.container,
     );
     this.phoneInput = ensureElement<HTMLInputElement>(
-      'input[name=phone]',
+      "input[name=phone]",
       this.container,
     );
   }

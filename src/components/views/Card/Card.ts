@@ -18,10 +18,18 @@ export abstract class Card<T extends Partial<IProduct>> extends Component<T> {
   constructor(container: HTMLElement) {
     super(container);
 
-    this.imageElement = container.querySelector<HTMLImageElement>(".card__image");
-    this.categoryElement = container.querySelector<HTMLElement>(".card__category");
-    this.titleElement = ensureElement<HTMLElement>(".card__title", this.container);
-    this.priceElement = ensureElement<HTMLElement>(".card__price", this.container);
+    this.imageElement =
+      container.querySelector<HTMLImageElement>(".card__image");
+    this.categoryElement =
+      container.querySelector<HTMLElement>(".card__category");
+    this.titleElement = ensureElement<HTMLElement>(
+      ".card__title",
+      this.container,
+    );
+    this.priceElement = ensureElement<HTMLElement>(
+      ".card__price",
+      this.container,
+    );
   }
 
   set title(value: string) {
@@ -41,12 +49,15 @@ export abstract class Card<T extends Partial<IProduct>> extends Component<T> {
 
   set image(value: string) {
     if (!this.imageElement) return;
-    this.setImage(this.imageElement, value, this.titleElement.textContent ?? "");
+    this.setImage(
+      this.imageElement,
+      value,
+      this.titleElement.textContent ?? "",
+    );
   }
 
   set price(value: number | null) {
-    this.priceElement.textContent = value === null
-      ? "Бесценно"
-      : `${value} синапсов`;
+    this.priceElement.textContent =
+      value === null ? "Бесценно" : `${value} синапсов`;
   }
 }

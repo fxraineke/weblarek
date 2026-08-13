@@ -128,7 +128,7 @@ interface IProduct {
 
 Тип оплаты для интерфейса покупателя.
 ```
-export type TPayment = typeof PAYMENTS[number];
+export type TPayment = "card" | "cash" | "";
 ```
 
 Интерфейс данных покупателя.

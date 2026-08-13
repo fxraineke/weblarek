@@ -4,7 +4,7 @@ import { Card, ICardActions } from "./Card";
 
 export type TCardPreview = Pick<
   IProduct,
-   "image" | "category" | "title" | "description" | "price"
+  "image" | "category" | "title" | "description" | "price"
 > & { inCart: boolean };
 
 export class CardPreview extends Card<TCardPreview> {
