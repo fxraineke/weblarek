@@ -1,52 +1,70 @@
 import { IBuyer, TPayment } from "../../types";
+import { IEvents } from "../base/Events";
 
 type TErrors = Partial<Record<keyof IBuyer, string>>;
 
 export class Buyer implements IBuyer {
-  public payment: TPayment = "";
-  public address: string = "";
-  public email: string = "";
-  public phone: string = "";
+  private _payment: TPayment = "";
+  private _address: string = "";
+  private _email: string = "";
+  private _phone: string = "";
 
-  // установить тип оплаты
-  public setPayment(payment: TPayment): void {
-    this.payment = payment;
+  constructor(private events: IEvents) {}
+
+  get payment(): TPayment {
+    return this._payment;
+  }
+  set payment(value: TPayment) {
+    if (this._payment === value) return;
+    this._payment = value;
+    this.emitChanged();
   }
 
-  // установить адрес
-  public setAddress(address: string): void {
-    this.address = address;
+  get address(): string {
+    return this._address;
+  }
+  set address(value: string) {
+    if (this._address === value) return;
+    this._address = value;
+    this.emitChanged();
   }
 
-  // установить email
-  public setEmail(email: string): void {
-    this.email = email;
+  get email(): string {
+    return this._email;
+  }
+  set email(value: string) {
+    if (this._email === value) return;
+    this._email = value;
+    this.emitChanged();
   }
 
-  // установить телефон
-  public setPhone(phone: string): void {
-    this.phone = phone;
+  get phone(): string {
+    return this._phone;
+  }
+  set phone(value: string) {
+    if (this._phone === value) return;
+    this._phone = value;
+    this.emitChanged();
   }
 
-  // получить данные покупателя
   public getBuyer(): IBuyer {
     return {
-      payment: this.payment,
-      address: this.address,
-      email: this.email,
-      phone: this.phone,
+      payment: this._payment,
+      address: this._address,
+      email: this._email,
+      phone: this._phone,
     };
   }
 
-  // очистить данные покупателя
   public clearBuyer(): void {
-    this.payment = "";
-    this.address = "";
-    this.email = "";
-    this.phone = "";
+    if (!this._payment && !this._address && !this._email && !this._phone) return;
+    this._payment = "";
+    this._address = "";
+    this._email = "";
+    this._phone = "";
+    this.emitChanged();
   }
 
-  // валидация данных покупателя
   public validate(): TErrors {
     const errors: TErrors = {};
 
@@ -56,22 +74,23 @@ export class Buyer implements IBuyer {
 
     if (!this.address) {
       errors.address = "Необходимо указать адрес";
-    } else if (this.address.length < 10) {
-      errors.address = "Неверный формат адреса (минимум 10 символов)";
     }
 
     if (!this.phone) {
       errors.phone = "Необходимо указать телефон";
-    } else if (!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(this.phone)) {
-      errors.phone = "Неверный формат телефона (+7 (XXX) XXX-XX-XX)";
     }
 
     if (!this.email) {
       errors.email = "Необходимо указать email";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
-      errors.email = "Неверный формат email (example@example.com)";
     }
 
     return errors;
+  }
+
+  private emitChanged(): void {
+    this.events.emit<{ buyer: IBuyer; errors: TErrors }>("buyer:changed", {
+      buyer: this.getBuyer(),
+      errors: this.validate(),
+    });
   }
 }
